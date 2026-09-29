@@ -18,6 +18,76 @@ Baseline debt may still block release; it does not become safe because it predat
 the upgrade. A historical full-suite pass, mock, syntax check, route table and
 native execution are different kinds of evidence.
 
+## Ruby helpers
+
+The optional scripts in `scripts/` collect JSON evidence and generate Markdown.
+Use plain Ruby from the application's selected runtime, with standard libraries
+and Git available, on macOS/Linux. Ruby 2.7 or newer is required. Regression checks
+have been exercised on macOS with Ruby 2.7.8, 3.4.2 and 4.0.6; Linux and other Ruby
+implementations have not been exercised.
+Do not launch them through `bundle exec` or Rails runner: those can evaluate
+application code before the snapshot begins. Existing `RUBYOPT` startup hooks
+also run before a Ruby script and must be reviewed separately.
+
+Replace these paths. Keep evidence outside the application checkout so writing
+the evidence does not change the source identity being measured:
+
+```sh
+skill_dir="/absolute/path/to/rails-update"
+app_dir="/absolute/path/to/application"
+evidence_dir=$(mktemp -d)
+
+# Before changing Ruby, Rails or dependencies:
+ruby "$skill_dir/scripts/runtime_snapshot.rb" "$app_dir" > "$evidence_dir/before.json"
+
+# After the upgrade, review these commands and configure an isolated test database.
+# Substitute the application's real test commands and required local wrappers.
+ruby "$skill_dir/scripts/verify_upgrade.rb" \
+  --check 'tests=env RAILS_ENV=test bundle exec rspec' \
+  --check 'autoload=env RAILS_ENV=test bundle exec rails zeitwerk:check' \
+  "$app_dir" > "$evidence_dir/verification.json"
+
+# Generate a report even when verification returned a nonzero status.
+ruby "$skill_dir/scripts/upgrade_report.rb" \
+  "$evidence_dir/before.json" "$evidence_dir/verification.json" \
+  > "$evidence_dir/report.md"
+```
+
+Review the JSON and command logs as well as the report. Add the app's required
+checks, such as focused tests, assets or native tools, only after inspecting their
+side effects. The helper never chooses a database, runs migrations or seeds,
+installs gems, or starts application commands automatically.
+
+- **Snapshot:** records the Ruby process running the helper, `.ruby-version`,
+  selected file hashes, and metadata from `Gemfile.lock`. Use `--lockfile PATH`
+  on both snapshot and verifier for `gems.locked` or another lockfile. Missing
+  metadata stays unknown; this is not a lockfile validator or a Gemfile interpreter.
+  Locked Rails/Bundler versions are not evidence of running Rails/Bundler.
+- **Verifier:** optionally accepts `--ruby VERSION` for the running Ruby and
+  `--rails VERSION` for locked Rails. It compares exact numeric `.ruby-version`
+  declarations; aliases or engine-specific declarations require manual review.
+  Repeat `--check 'NAME=COMMAND'` for reviewed commands. Commands run sequentially
+  in the application directory, inherit the environment, receive no stdin and
+  use argv parsing without shell expansion. Use `env NAME=value ...` for explicit
+  environment settings; pipes, redirects and shell substitutions are not interpreted.
+  Commands and exit codes are recorded; output goes to stderr, outside the JSON.
+  Keep secrets out of command arguments and review logs before sharing them.
+- **Timeouts and exit codes:** `--timeout SECONDS` defaults to 600 per command;
+  a timeout kills that command's process group and records failure. Independent
+  checks continue after failures. Verifier exit `0` means the selected checks
+  passed; `1` means a check failed; `2` means incomplete evidence or an input/tool
+  error. No selected commands means incomplete. Snapshot/report exit `0` means
+  evidence/report generation succeeded, not that the upgrade passed.
+- **Source identity:** records Git HEAD, branch, staged/unstaged diffs and
+  nonignored untracked file contents. A change during checks invalidates the run.
+  Ignored files, dependency installations, submodule working contents and external
+  services are outside this identity. Without Git, verification stays incomplete.
+- **Report:** accepts a baseline snapshot and verification JSON for the same
+  application path. It preserves failed, blocked and unrun checks, distinguishes
+  locked from running versions and lists remaining verification areas. It does not
+  parse test counts, inspect current source, establish database fidelity, or claim
+  CI/container/deployment acceptance. Add those results from their actual evidence.
+
 ## Check matrix
 
 | Gate | Minimum useful evidence | Easily missed failure |

@@ -39,6 +39,11 @@ commits with `git show`; do not switch another person's checkout just to read it
 Verify ancestry before attributing an earlier fix to a requested snapshot. A
 commit subject, branch name, or old audit does not establish the runtime.
 
+Use [scripts/runtime_snapshot.rb](scripts/runtime_snapshot.rb) when a reusable
+JSON baseline would help. Run it with plain Ruby, not `bundle exec` or Rails
+runner. It reads declared metadata without evaluating the Gemfile or booting Rails;
+it does not prove the application, container or workers use that runtime.
+
 Build a compact baseline with:
 
 - Declared **and running** Ruby, Rails, Bundler, framework defaults and explicit
@@ -132,6 +137,11 @@ Apply the relevant matrix in [verification.md](references/verification.md).
 Run focused checks first, then the full suite for an upgrade. Use the same coverage,
 test-distribution, dependency groups and compiled assets as CI. A Ruby patch,
 lockfile, base-image or late source change invalidates affected earlier evidence.
+
+For repeatable local evidence, use [scripts/verify_upgrade.rb](scripts/verify_upgrade.rb)
+with explicitly selected, reviewed commands, then [scripts/upgrade_report.rb](scripts/upgrade_report.rb)
+to summarize the baseline and results. Follow the [helper instructions](references/verification.md#ruby-helpers).
+No command checks are selected automatically; a generated report is not release approval.
 
 Deliver the requested changes and a concise report containing:
 
