@@ -10,10 +10,10 @@ new mechanism and a behavioral check.
 
 | Area | Search for / symptom |
 | --- | --- |
-| Runtime and dependencies | Runtime disagreement, missing standard libraries, production-only load errors, native builds |
+| Runtime and dependencies | Runtime disagreement, missing standard libraries, implicit APIs lost with removed gems, native builds |
 | Removed APIs and loading | Keyword arguments, enums, autoloading, route fragments, framework monkey patches |
-| Persistence and search | YAML/JSON, association requiredness, Ransack, SQL sorting, tenancy |
-| Forms and rendering | Error objects, silent validation, strong parameters, format negotiation, helpers |
+| Persistence and search | YAML/JSON, association requiredness, Ransack, joined bulk writes, tenancy |
+| Forms and rendering | Error objects, silent validation, strong parameters, format negotiation, mixed asset pipelines |
 | Jobs, reports and files | Renderer state, worker context, binary dependencies, imports, cron |
 | Authentication and I18n | First-request authentication, SAML, stored sessions, reloadable translation models |
 | Tests and delivery | Coverage boot, shared state, seeds, missing test gates, changed behavior hidden by green tests |
@@ -42,6 +42,14 @@ universally enable `force_ruby_platform`, system libraries, insecure TLS, or an
 old gem pin: each changes compatibility or security and needs its own evidence.
 ZIP/spreadsheet consumers can constrain Rubyzip; change them together when needed
 and test real archives/imports. Refresh advisories; old scan counts are not current.
+
+**APIs supplied indirectly by gems.** Before removing an integration gem, inspect
+the lockfile dependencies that disappear with it and search their callers too.
+Replacing a template integration with its core library can also remove a
+pagination gem used by an unrelated index action. Prefer the app's existing
+pagination API where equivalent; verify page boundaries, totals, ordering and
+unpaginated exports. Check removed Railties/engines for helpers and vendor asset
+paths. Absence of that integration's templates does not prove removal is safe.
 
 **Developer tools also cross the boundary.** Inspect RuboCop's supported Ruby
 parser/`TargetRubyVersion`, plugin configuration, RSpec/RSwag, Brakeman,
@@ -100,6 +108,9 @@ verbs, paths and authorization before/after. Remove a patch only when the target
 framework handles its actual use case. Apply the same review to database-drop,
 Database Cleaner, logger, MIME registry and other internal patches. Never expose
 a previously protected engine/docs/queue console to make routing pass.
+For mounted Rack/Sinatra tools, check the engine's own host authorization too.
+Request specs must use an intended allowed host; verify rejection separately
+instead of disabling the host allowlist to fix a test-only default-host failure.
 
 ## Persistence and search
 
@@ -139,6 +150,16 @@ expressions, or construct from an explicit column/direction allowlist with corre
 quoting/binds. Verify joined-table ambiguity, null/blank placement, numeric versus
 lexical order, `DISTINCT`/pagination and stable tie ordering. Do not delete a sorting
 test or merely fall back to ID order if sorting is a supported user feature.
+
+**Joined bulk writes.** Search `update_all`, `delete_all` and the scopes feeding
+them, especially scheduled status/retention tasks. A successful SELECT does not
+prove the generated mutation SQL works. Rails changed joined UPDATE generation
+for PostgreSQL/SQLite ([upstream change](https://github.com/rails/rails/commit/a6bc4b2c138d2ff44f3a56492453af2dee78a954));
+reproduce with the target adapter and actual relation shape, including limits or
+outer joins when used. Qualify ambiguous predicates with their intended table
+using nested hashes or reviewed SQL. On disposable data, execute the real write
+and assert exact affected IDs and unchanged excluded/other-tenant rows. Do not
+drop a join, tenant filter or condition just to make the statement execute.
 
 **Tenant boundaries.** Follow every record selector through requests, exports,
 jobs, nested attributes and autocomplete. Resolve submitted IDs through the active
@@ -188,6 +209,20 @@ JavaScript may exceed the old minifier's syntax support; verify supported option
 Test production compilation and the actual served asset, including error states
 and PDF consumers. Do not treat a source-map warning as a failed build or suppress
 a real compiler error because the development page loads.
+
+When Sprockets and a bundler both publish `application.js`, inspect which source
+the logical name resolves to. Give colliding entrypoints distinct names and update
+manifests, normal/PDF layouts, standalone reports and engine consumers together.
+Assert that the compiled asset contains the expected library and that a real
+widget works with the dev proxy disabled; precompile success alone misses this.
+
+**UJS/Turbo and rejected JavaScript responses.** For mixed legacy frontends, test
+remote forms, method/confirm links, redirects, navigation/back and reconnecting
+widgets; assert one intended write per action. Inspect duplicate event handlers
+before changing frameworks. Exercise CSRF/cross-origin rejection as well as valid
+XHR. If rejection happens after rendering, a rescue must discard the rendered
+body and preserve the intended error status without triggering a second render.
+Do not disable forgery protection to make the response test pass.
 
 **Helpers and legacy widgets.** If a helper patches removed Action View internals
 (for example country selection), first try a native form control with the existing
@@ -281,7 +316,9 @@ under those exact options. A Bootsnap/Ruby compilation conflict may need a
 compatible Bootsnap release; a documented, narrowly scoped
 `BOOTSNAP_COMPILE_CACHE=false` can isolate it where supported. Preserve coverage
 and add a removal condition for a temporary workaround. Do not assume every
-Bootsnap failure has this cause or apply an old version threshold blindly.
+Bootsnap failure has this cause or apply an old version threshold blindly. After
+updating the dependency, rerun the original failing harness without the workaround
+in isolation before deciding whether it still belongs in CI.
 
 **Order-dependent failures.** Inspect examples mutating global config, `ENV`,
 `Current`, I18n backends, time, caches and job adapters. Restore values in the
@@ -295,8 +332,10 @@ query translated fields on the wrong table or delete populated data. Test a fres
 disposable schema and safe bootstrap separately from migration of a restored
 database. Check database configuration inheritance; a `host: null` override may
 discard CI's intended host. Verify actual effective configuration with secrets
-redacted. Confirm the test job runs and deployment depends on its success; a
-commented job, skipped branch, tolerated error or stale cached artifact is no gate.
+redacted. Follow the workflow from deployment through build to required tests on
+the actual release branch, including triggers, `if`, `needs` and tolerated errors.
+A test job may run on feature branches yet be skipped on main/develop while the
+build/deploy chain runs independently. A stale cached artifact is no test gate.
 
 Check image builds for migrations, remote DB access, credential keys copied into
 layers, startup side effects and removed features hidden behind mocks. Migrations

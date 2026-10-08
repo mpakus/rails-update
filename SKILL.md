@@ -39,6 +39,11 @@ commits with `git show`; do not switch another person's checkout just to read it
 Verify ancestry before attributing an earlier fix to a requested snapshot. A
 commit subject, branch name, or old audit does not establish the runtime.
 
+For a repeated audit, distinguish the original upgrade tip, the current release
+or integration tip, and the working checkout. Inspect follow-up fixes as well as
+the original upgrade diff. Squashed/rebased copies may not share ancestry;
+compare their relevant file contents before calling a fix missing or merged.
+
 Use [scripts/runtime_snapshot.rb](scripts/runtime_snapshot.rb) when a reusable
 JSON baseline would help. Run it with plain Ruby, not `bundle exec` or Rails
 runner. It reads declared metadata without evaluating the Gemfile or booting Rails;
@@ -102,6 +107,8 @@ For each candidate:
    that observes behavior, not just a mock of the replacement API.
 4. Fix the shared cause, then check sibling paths: create/update, HTML/JS/JSON,
    synchronous/queued reports, admin/ordinary user, and every supported variant.
+   Record those entrypoints and their checks before editing; a regression spec
+   for one service does not cover the controllers and jobs that dispatch to it.
 5. Search again and classify remaining matches. Do not hide the error by removing
    a validation, broadening permissions, disabling an integration, stubbing the
    failing path, or deleting its test.

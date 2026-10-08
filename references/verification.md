@@ -18,6 +18,20 @@ Baseline debt may still block release; it does not become safe because it predat
 the upgrade. A historical full-suite pass, mock, syntax check, route table and
 native execution are different kinds of evidence.
 
+For a repeated audit, record the original upgrade revision and the current
+release/integration revision separately. Link late fixes to the checks they
+invalidate; do not copy a full-suite result forward after a runtime, dependency
+or rendering change. Keep generated annotation/schema reordering separate from
+semantic changes when reviewing the diff.
+
+Before fixing a shared mechanism, add a compact caller inventory to the existing
+finding ledger: `entrypoint | format/variant | role/tenant | focused check`.
+For a report this can include an interactive download, a scheduled export, each
+job dispatch branch and a shared PDF layout. Reuse representative records with
+assertable labels/totals and empty-data cases. Assert rendered content before
+stubbing the binary boundary, then verify the real binary separately. This makes
+uncovered callers visible without introducing another test framework.
+
 ## Ruby helpers
 
 The optional scripts in `scripts/` collect JSON evidence and generate Markdown.
@@ -63,6 +77,8 @@ installs gems, or starts application commands automatically.
   on both snapshot and verifier for `gems.locked` or another lockfile. Missing
   metadata stays unknown; this is not a lockfile validator or a Gemfile interpreter.
   Locked Rails/Bundler versions are not evidence of running Rails/Bundler.
+  It reads the working checkout, not a supplied Git ref. For another revision,
+  inspect it with `git show` or use a disposable checkout before collecting evidence.
 - **Verifier:** optionally accepts `--ruby VERSION` for the running Ruby and
   `--rails VERSION` for locked Rails. It compares exact numeric `.ruby-version`
   declarations; aliases or engine-specific declarations require manual review.
@@ -86,7 +102,9 @@ installs gems, or starts application commands automatically.
   application path. It preserves failed, blocked and unrun checks, distinguishes
   locked from running versions and lists remaining verification areas. It does not
   parse test counts, inspect current source, establish database fidelity, or claim
-  CI/container/deployment acceptance. Add those results from their actual evidence.
+  CI/container/deployment acceptance. Add those results from their actual evidence,
+  along with `config.load_defaults` and relevant environment/initializer overrides;
+  the scripts hash configuration but do not evaluate its effective values.
 
 ## Check matrix
 
@@ -96,16 +114,17 @@ installs gems, or starts application commands automatically.
 | Cold boot/loading | Fresh process in every supported environment; eager load and first request; reload if supported | Initializer order, config acronyms, lazy Warden strategies, boot-time DB writes |
 | Routes/API | Compare names/verbs/paths and request behavior; auth, errors, JSON structure, metadata, pagination and content types | Removed custom actions, changed route helpers, keyword-only serializer, accidentally public docs |
 | Models/data | Stored-value round trips, callbacks, enums, validation conditions, soft-delete/restore and association resolution | Blank/draft states become invalid; old serialized rows stop loading |
+| Bulk writes | Execute joined updates/deletes on disposable data with the target adapter; compare exact affected and preserved IDs | A SELECT passes while mutation SQL is ambiguous or changes the wrong rows |
 | Tenancy/auth | Two tenants and roles; forged IDs/filters; session/token lifecycle; full SSO checks if present | Broad search allowlists, global lookups, reports escaping request scope |
-| Forms/browser | Invalid create/update and successful persistence; real JS, modal errors, nested selectors, helper widgets | 200 response with blank alert, console error, field silently discarded |
-| Assets | Production compilation without live services where designed; fetch actual JS/CSS/font/image assets | Missing vendor paths, wrong entrypoint, `.js` with unprocessed ERB, dev-server-only success |
+| Forms/browser | Invalid create/update, successful persistence and rejected requests; real JS, modal errors, nested selectors, navigation | Blank alert, discarded field, duplicate UJS/Turbo writes, double render in a rejection handler |
+| Assets | Production compilation without live services where designed; fetch actual JS/CSS/font/image assets and verify expected code/widget | Colliding logical entrypoints, missing engine/vendor paths, unprocessed ERB, dev-server-only success |
 | Queues/schedules | Execute real adapter with synthetic old/new payloads, mail delivery, retry/idempotency; harmless cron check | Inline tests miss serialization; scheduler disabled by build flag; cron log path missing |
 | Reports/files | Request/job-to-download path; parse generated PDF/XLS/XLSX/ZIP; representative and empty totals; visual PDF check | Instance variables absent, wrong layout/format, parser accepts an empty artifact |
 | Native runtime | Execute PDF and image transformations inside final production architecture/image | Working macOS binary, missing image codec or incompatible OpenSSL in Linux |
 | Database | Isolated fresh schema/bootstrap and restored-copy migration; structural and per-tenant fidelity | Seeds query obsolete schema or delete rows; migrations work only on a developer DB |
 | Tests | Focused regression checks and full suite under CI-equivalent harness; changed JS checks where applicable | Coverage-only boot crash, global-state leak, excluded slow specs, weakened assertions |
 | Lint/security | Target-runtime-compatible tools; changed-code lint and refreshed dependency/static scans with triage | Scanner cannot parse new Ruby; nonzero scan represented as clean |
-| Delivery/rollback | Active required CI, immutable artifact/revision, web-worker parity, release migration and rollback rehearsal | Image built without tests, DB mutation in Docker build, incompatible mixed workers |
+| Delivery/rollback | Required tests feed build/deploy on the release branch; immutable artifact/revision, web-worker parity and rollback rehearsal | Feature-only tests bypassed by deploy, DB mutation in Docker build, incompatible mixed workers |
 
 ## Commands are templates, not a script to run blindly
 

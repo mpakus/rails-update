@@ -134,6 +134,11 @@ and verify the real browser, API, job, report and production-image paths.
 Use rails-update to audit the upgrade between <base-sha> and <target-sha>.
 Find regressions and missing evidence, and fix the confirmed compatibility issues.
 Keep historical results separate from checks performed on the final revision.
+
+Use rails-update to re-audit <upgrade-ref> against <release-ref> without switching
+my working checkout. Include follow-up fixes, shared controller/job/template
+callers and whether release CI actually requires the tests. Turn reusable findings
+into conditional checks; preserve each application's defaults and dependency needs.
 ```
 
 The skill works across runtime versions and application domains. It guides
