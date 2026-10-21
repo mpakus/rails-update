@@ -8,6 +8,9 @@ Source: [mpakus/rails-update](https://github.com/mpakus/rails-update).
 `SKILL.md`, `references/` and `scripts/` live at the repository root and form a
 self-contained skill, independent of any particular application.
 
+After installing, see [How to use](#how-to-use) for chat commands and copyable
+upgrade, audit and verification prompts.
+
 ## Layout
 
 ```text
@@ -82,11 +85,11 @@ verify packaging; they do not establish live invocation or application correctne
 Copy `SKILL.md`, `LICENSE` and the **whole `references/` and `scripts/` directories** from the
 repository root into one supported location:
 
-| Client | Project location | Invoke |
-| --- | --- | --- |
-| Cursor | `.cursor/skills/rails-update/` | `/rails-update` or ask to use the skill |
-| Claude Code | `.claude/skills/rails-update/` | `/rails-update` |
-| Codex | `.agents/skills/rails-update/` | `$rails-update` or select it from skills |
+| Client | Project location |
+| --- | --- |
+| Cursor | `.cursor/skills/rails-update/` |
+| Claude Code | `.claude/skills/rails-update/` |
+| Codex | `.agents/skills/rails-update/` |
 
 Each destination must contain `SKILL.md`, `LICENSE`, `references/` and `scripts/` directly;
 do not add another nested `rails-update/` folder. `test/` is only needed to run the
@@ -100,14 +103,87 @@ their own workspace or supported synchronized location.
 
 These locations follow the official [Cursor](https://cursor.com/docs/skills),
 [Claude Code](https://code.claude.com/docs/en/skills), and
-[Codex](https://developers.openai.com/codex/skills) documentation checked on
-2026-09-28. This package uses common `name`/`description` frontmatter and relative
+[Codex](https://learn.chatgpt.com/docs/build-skills) documentation checked on
+2026-10-21. This package uses common `name`/`description` frontmatter and relative
 references, without client-specific hooks, tools or required plugins.
 
 Cloning this repository outside a supported skills directory does not install it.
 Without installing, explicitly ask the agent to read `SKILL.md` in this checkout
 and follow its linked references. From another directory, provide the absolute
 path to this checkout's `SKILL.md`.
+
+## How to use
+
+Open the **application you want to upgrade** in your agent, install the skill
+there or globally, then send a request in the agent's chat:
+
+| Client | Chat invocation |
+| --- | --- |
+| Codex | Type `$rails-update` and add your request. In the CLI or IDE extension, `/skills` also opens the skill selector. |
+| Claude Code | Type `/rails-update` and add your request. |
+| Cursor | Type `/` in Agent chat, select `rails-update`, then add your request. |
+
+These are skill mentions in chat, not shell commands. The existing
+`name: rails-update` in [SKILL.md](SKILL.md) supplies the name; no wrapper script
+or separate command installation is needed. Invocation follows the official
+[Codex](https://learn.chatgpt.com/docs/build-skills#how-chatgpt-and-codex-use-skills),
+[Claude Code](https://code.claude.com/docs/en/skills) and
+[Cursor](https://cursor.com/docs/skills) instructions.
+
+The examples below use Codex syntax. For Claude Code or Cursor, use
+`/rails-update` instead of `$rails-update`. Replace angle-bracket placeholders
+with your target versions or Git revisions. The text after the skill name is
+your request, not a fixed set of subcommands.
+
+### Plan an upgrade
+
+```text
+$rails-update Analyze this application for an upgrade to Ruby <ruby-version>
+and Rails <rails-version>. Inspect the current stack, dependency constraints,
+tests and deployment setup. Produce a staged plan without changing code or
+resolving a new lockfile.
+```
+
+### Implement an upgrade
+
+```text
+$rails-update Upgrade this application to Ruby <ruby-version> and Rails
+<rails-version>. Capture a baseline, implement the required compatibility fixes,
+preserve existing framework defaults and behavior, and run the relevant checks.
+Summarize changes, test results and remaining release gates.
+```
+
+### Audit an existing upgrade
+
+```text
+$rails-update Audit the upgrade between <base-sha> and <target-sha> without
+switching my working checkout. Include follow-up fixes, shared callers and CI
+test gates. Report regressions and missing evidence without editing code.
+```
+
+To request repairs too, add: `Fix confirmed compatibility issues and verify
+the changed behavior.` For a repeated audit, supply both the original upgrade
+revision and the current release revision so the agent can check later fixes.
+
+### Verify the result and write a report
+
+```text
+$rails-update Verify the current upgrade and write a Markdown report. Use the
+saved pre-upgrade snapshot at <baseline-json-path> if available. Select the
+applicable checks from the repository, run them in an isolated test environment,
+and use verify_upgrade.rb and upgrade_report.rb to save the evidence and report.
+Separate passing, failing, skipped and unverified checks; include the exact Git
+revision and remaining release gates. If no baseline exists, report that gap.
+```
+
+The helpers run selected checks; the agent still needs to inspect application
+behavior and choose relevant tests. See [Ruby helpers](#ruby-helpers) below.
+
+You can also ask in plain language: `Use rails-update to plan this app's upgrade.`
+If the skill is missing from the selector, check the installation location above
+and confirm that it contains `SKILL.md`. In Codex, restart the client if an
+installed skill has not appeared. You can also explicitly provide the path to
+`SKILL.md` as described under [Manual installation](#manual-installation).
 
 ## Ruby helpers
 
@@ -140,26 +216,6 @@ The [CI workflow](.github/workflows/ci.yml) runs the helper and package checks
 on Linux and macOS, including a legacy Ruby baseline. Supporting old Ruby for
 baseline evidence collection is not a recommendation to deploy an EOL runtime.
 See [release preparation](RELEASING.md) and [changes](CHANGELOG.md).
-
-## Example requests
-
-```text
-Use rails-update to analyze this app for the Ruby and Rails versions I specify.
-Inspect the current stack and produce a staged plan without changing code.
-
-Use rails-update to upgrade this application to Ruby <target> and Rails <target>.
-Preserve existing framework defaults and behavior; implement compatibility fixes
-and verify the real browser, API, job, report and production-image paths.
-
-Use rails-update to audit the upgrade between <base-sha> and <target-sha>.
-Find regressions and missing evidence, and fix the confirmed compatibility issues.
-Keep historical results separate from checks performed on the final revision.
-
-Use rails-update to re-audit <upgrade-ref> against <release-ref> without switching
-my working checkout. Include follow-up fixes, shared controller/job/template
-callers and whether release CI actually requires the tests. Turn reusable findings
-into conditional checks; preserve each application's defaults and dependency needs.
-```
 
 The skill works across runtime versions and application domains. It guides
 investigation and repair; it cannot guarantee that all
