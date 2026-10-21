@@ -34,11 +34,12 @@ uncovered callers visible without introducing another test framework.
 
 ## Ruby helpers
 
-The optional scripts in `scripts/` collect JSON evidence and generate Markdown.
+The snapshot, verifier and report scripts collect JSON evidence and generate Markdown.
 Use plain Ruby from the application's selected runtime, with standard libraries
 and Git available, on macOS/Linux. Ruby 2.7 or newer is required. Regression checks
 have been exercised on macOS with Ruby 2.7.8, 3.4.2 and 4.0.6; Linux and other Ruby
-implementations have not been exercised.
+implementations require their own results. The repository CI matrix checks Linux
+and macOS; its configuration alone is not evidence that a run passed.
 Do not launch them through `bundle exec` or Rails runner: those can evaluate
 application code before the snapshot begins. Existing `RUBYOPT` startup hooks
 also run before a Ruby script and must be reviewed separately.
@@ -79,6 +80,8 @@ installs gems, or starts application commands automatically.
   Locked Rails/Bundler versions are not evidence of running Rails/Bundler.
   It reads the working checkout, not a supplied Git ref. For another revision,
   inspect it with `git show` or use a disposable checkout before collecting evidence.
+  YJIT/ZJIT fields describe this helper process: `false` means disabled and `null`
+  means unavailable. They do not establish the Rails server's JIT settings.
 - **Verifier:** optionally accepts `--ruby VERSION` for the running Ruby and
   `--rails VERSION` for locked Rails. It compares exact numeric `.ruby-version`
   declarations; aliases or engine-specific declarations require manual review.
@@ -106,6 +109,41 @@ installs gems, or starts application commands automatically.
   along with `config.load_defaults` and relevant environment/initializer overrides;
   the scripts hash configuration but do not evaluate its effective values.
 
+### Candidate Ruby requirement checker
+
+`check_ruby_requirements.rb` is a separate, opt-in bundle check. Unlike the
+snapshot/report helpers, it evaluates the Gemfile and gemspecs through Bundler.
+Review them and startup hooks first; they are executable code. Run from the app
+directory with plain Ruby and its installed Bundler, on the **current compatible
+Ruby before changing `.ruby-version`/Gemfile**. It honors `BUNDLE_GEMFILE` and
+reports the chosen path. It does not call `Bundler.require` or boot Rails itself.
+
+```sh
+ruby "$skill_dir/scripts/check_ruby_requirements.rb" --target "$target_ruby"
+```
+
+Define `skill_dir` and the exact candidate `target_ruby` first. This uses the
+installed locked bundle for the current platform, including gem requirements
+from path/git sources that Bundler can materialize locally. Frozen mode rejects
+a missing/stale lockfile; the checker does not install gems or update the lock.
+Bundler/Gemfile diagnostics go to stderr; review them before sharing.
+Exit `0` means those declared requirements accept the target, `1` means at least
+one rejects it, and `2` means bad input or unavailable/inconsistent bundle evidence.
+No outcome proves target-platform availability, native ABI, gem behavior or
+advisory status. Follow with a clean target-runtime install and application checks.
+
+After the upgrade it can be selected in `verify_upgrade.rb` like any command:
+
+```sh
+ruby "$skill_dir/scripts/verify_upgrade.rb" \
+  --check "ruby_requirements=ruby '$skill_dir/scripts/check_ruby_requirements.rb' --target '$target_ruby'" \
+  "$app_dir" > "$evidence_dir/verification.json"
+```
+
+The normal report records that command's exit status; keep the checker's detailed
+JSON from stderr with the other logs. Passing only this check is not an app test.
+See [Ruby 4 regression recipes](ruby-4.md) for library/process/HTTP checks to add.
+
 ## Check matrix
 
 | Gate | Minimum useful evidence | Easily missed failure |
@@ -116,7 +154,7 @@ installs gems, or starts application commands automatically.
 | Models/data | Stored-value round trips, callbacks, enums, validation conditions, soft-delete/restore and association resolution | Blank/draft states become invalid; old serialized rows stop loading |
 | Bulk writes | Execute joined updates/deletes on disposable data with the target adapter; compare exact affected and preserved IDs | A SELECT passes while mutation SQL is ambiguous or changes the wrong rows |
 | Tenancy/auth | Two tenants and roles; forged IDs/filters; session/token lifecycle; full SSO checks if present | Broad search allowlists, global lookups, reports escaping request scope |
-| Forms/browser | Invalid create/update, successful persistence and rejected requests; real JS, modal errors, nested selectors, navigation | Blank alert, discarded field, duplicate UJS/Turbo writes, double render in a rejection handler |
+| Forms/browser | [Form matrix](forms.md): submit real control names, reload parent/children; clear/update/delete, invalid requests, uploads and real JS | In-memory success with lost data, omitted fields erased, checkbox ghost rows, duplicate submissions |
 | Assets | Production compilation without live services where designed; fetch actual JS/CSS/font/image assets and verify expected code/widget | Colliding logical entrypoints, missing engine/vendor paths, unprocessed ERB, dev-server-only success |
 | Queues/schedules | Execute real adapter with synthetic old/new payloads, mail delivery, retry/idempotency; harmless cron check | Inline tests miss serialization; scheduler disabled by build flag; cron log path missing |
 | Reports/files | Request/job-to-download path; parse generated PDF/XLS/XLSX/ZIP; representative and empty totals; visual PDF check | Instance variables absent, wrong layout/format, parser accepts an empty artifact |
@@ -160,6 +198,11 @@ git diff --check
 
 Run only tools the project uses and whose installed versions support the options.
 Do not install scanners or a second test framework just because they appear here.
+Record the scanner version, advisory database revision/date and any ignored
+advisories. A lockfile-only scan can run on a disposable copy without booting the
+app; label its scope and include all resolved platforms. Triage affected runtime
+groups and actual served assets separately. Zero dependency advisories does not
+prove authorization, secret handling or application safety.
 For Ruby libraries use the existing `rake test`, RSpec or other declared task and
 check the public API on the supported Ruby range. Test changed dependency groups
 and packaging from a clean installation.
@@ -203,6 +246,11 @@ locally while promotion remains blocked by external acceptance checks.
 - Require the intended full tests/security gates on the exact deployable revision.
   Recheck after merges, runtime patches and lockfile/base-image changes. Explain
   any baseline findings explicitly accepted by the responsible owner.
+- Read CI job and shard conclusions, not only the workflow's green badge. Record
+  its URL, SHA, skipped jobs, `continue-on-error`, excluded specs, test summaries
+  and artifact identity. A successful build/deploy with skipped tests does not
+  replace a full-suite result. A feature-branch pass does not prove the merged
+  release revision passed, nor that branch protection requires that check.
 - Build an immutable application image without live DB migration. Run the reviewed
   migration once in an observable release step before processes needing it.
   Confirm web, worker and scheduler artifacts and configuration are compatible.

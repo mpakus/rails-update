@@ -12,17 +12,26 @@ self-contained skill, independent of any particular application.
 
 ```text
 rails-update/
+├── .github/workflows/ci.yml     # Linux/macOS helper and package checks
 ├── README.md                    # Installation and usage
+├── CHANGELOG.md                  # Release changes
+├── RELEASING.md                  # Maintainer release steps
+├── LICENSE                       # MIT license
 ├── SKILL.md                     # Agent instructions and reference links
 ├── references/
 │   ├── compatibility.md         # Conditional compatibility patterns
-│   └── verification.md          # Test, data preservation and release gates
+│   ├── verification.md          # Test, data preservation and release gates
+│   ├── ruby-4.md                # Ruby 4 checks and regression spec recipes
+│   └── forms.md                 # Form payload and persistence regression matrix
 ├── scripts/
 │   ├── runtime_snapshot.rb      # Read-only runtime/source evidence
 │   ├── verify_upgrade.rb        # Explicitly selected post-update checks
-│   └── upgrade_report.rb        # Markdown report from saved evidence
+│   ├── upgrade_report.rb        # Markdown report from saved evidence
+│   └── check_ruby_requirements.rb # Candidate Ruby vs installed gem requirements
 └── test/
-    └── scripts_test.rb          # Helper regression checks
+    ├── scripts_test.rb          # Evidence helper regression checks
+    ├── ruby_requirements_test.rb # Requirement checker and frozen bundle checks
+    └── package_test.rb          # Entrypoint, local links and script CLI checks
 ```
 
 This repository contains one skill. Keep its entrypoint at the root and detailed
@@ -64,12 +73,13 @@ npx skills@latest add /absolute/path/to/rails-update --skill rails-update \
   -a cursor -a claude-code -a codex
 ```
 
-Skills CLI 1.7.0 requires Node 22.20.0 or newer. Installation/discovery checks
+Skills CLI 1.7.4 requires Node 22.20.0 or newer (checked 2026-10-21).
+Installation/discovery checks
 verify packaging; they do not establish live invocation or application correctness.
 
 ## Manual installation
 
-Copy `SKILL.md` and the **whole `references/` and `scripts/` directories** from the
+Copy `SKILL.md`, `LICENSE` and the **whole `references/` and `scripts/` directories** from the
 repository root into one supported location:
 
 | Client | Project location | Invoke |
@@ -78,7 +88,7 @@ repository root into one supported location:
 | Claude Code | `.claude/skills/rails-update/` | `/rails-update` |
 | Codex | `.agents/skills/rails-update/` | `$rails-update` or select it from skills |
 
-Each destination must contain `SKILL.md`, `references/` and `scripts/` directly;
+Each destination must contain `SKILL.md`, `LICENSE`, `references/` and `scripts/` directly;
 do not add another nested `rails-update/` folder. `test/` is only needed to run the
 helper regression checks.
 
@@ -101,15 +111,18 @@ path to this checkout's `SKILL.md`.
 
 ## Ruby helpers
 
-The optional helpers use Ruby's standard libraries and Git; no Rails gems are
+The evidence helpers use Ruby's standard libraries and Git; no Rails gems are
 needed to collect a snapshot or generate a report. Run them with plain `ruby`,
-using the application's selected runtime, on macOS or Linux.
+using the application's selected runtime, on macOS or Linux. The requirements
+checker additionally uses the app's installed Bundler and evaluates its reviewed
+Gemfile/gemspecs; run it on the current Ruby before changing the declaration.
 
 | Script | Purpose |
 | --- | --- |
-| [runtime_snapshot.rb](scripts/runtime_snapshot.rb) | Record active Ruby, locked Rails/Bundler/platforms, file hashes and Git state without evaluating the Gemfile or booting Rails |
+| [runtime_snapshot.rb](scripts/runtime_snapshot.rb) | Record active Ruby/JIT state, locked Rails/Bundler/platforms, file hashes and Git state without evaluating the Gemfile or booting Rails |
 | [verify_upgrade.rb](scripts/verify_upgrade.rb) | Check optional version targets and run only named `--check` commands, preserving failures, timeouts and source changes |
 | [upgrade_report.rb](scripts/upgrade_report.rb) | Compare the baseline with verification evidence and generate a Markdown report with unverified gates |
+| [check_ruby_requirements.rb](scripts/check_ruby_requirements.rb) | Check a candidate Ruby against installed bundle requirements using RubyGems version semantics, with a frozen lockfile |
 
 See [helper usage and limitations](references/verification.md#ruby-helpers) for
 the before/update/verify/report workflow, command selection and exit codes.
@@ -119,7 +132,14 @@ Run the helper regression checks from this repository's root:
 
 ```sh
 ruby test/scripts_test.rb
+ruby test/ruby_requirements_test.rb
+ruby test/package_test.rb
 ```
+
+The [CI workflow](.github/workflows/ci.yml) runs the helper and package checks
+on Linux and macOS, including a legacy Ruby baseline. Supporting old Ruby for
+baseline evidence collection is not a recommendation to deploy an EOL runtime.
+See [release preparation](RELEASING.md) and [changes](CHANGELOG.md).
 
 ## Example requests
 
@@ -145,3 +165,7 @@ The skill works across runtime versions and application domains. It guides
 investigation and repair; it cannot guarantee that all
 possible defects have been discovered. Structural validation of the package does
 not certify an application's upgrade or each client's live skill discovery.
+
+## License
+
+[MIT](LICENSE).

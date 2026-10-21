@@ -1,0 +1,37 @@
+name: Skill checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Ruby ${{ matrix.ruby }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, ruby: '2.7', bundler: '2.4.22' }
+          - { os: ubuntu-22.04, ruby: '3.4', bundler: '4.0.19' }
+          - { os: ubuntu-22.04, ruby: '4.0', bundler: '4.0.19' }
+          - { os: macos-15, ruby: '4.0', bundler: '4.0.19' }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler: ${{ matrix.bundler }}
+      - name: Evidence helpers
+        run: ruby test/scripts_test.rb
+      - name: Frozen bundle requirement checks
+        run: ruby test/ruby_requirements_test.rb
+      - name: Package and documentation paths
+        run: ruby test/package_test.rb
+      - name: Whitespace
+        run: git show --format= --check HEAD

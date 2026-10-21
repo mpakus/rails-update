@@ -62,6 +62,8 @@ Dir.mktmpdir("rails-update-tests-") do |tmp|
   assert(before.dig("declared", "rails_locked") == ["8.1.3"], "Rails metadata missing")
   assert(before.dig("declared", "platforms_locked") == %w[arm64-darwin ruby], "Platforms missing")
   assert(before.dig("declared", "bundler_locked") == "4.0.15", "Bundler metadata missing")
+  assert(before.dig("running", "yjit_enabled") == (defined?(RubyVM::YJIT) ? RubyVM::YJIT.enabled? : nil), "YJIT state missing or incorrect")
+  assert(before.dig("running", "zjit_enabled") == (defined?(RubyVM::ZJIT) ? RubyVM::ZJIT.enabled? : nil), "ZJIT state missing or incorrect")
   assert(before.dig("git", "status") == "", "Expected clean Git state")
   assert(!out.include?("DO_NOT_PRINT"), "Source credentials leaked")
   baseline = File.join(tmp, "before.json")
@@ -89,6 +91,20 @@ Dir.mktmpdir("rails-update-tests-") do |tmp|
   report, err, code = run_script("upgrade_report.rb", baseline, evidence)
   assert(code == 0 && report.include?("**passed**") && report.include?("Unlisted gates are unverified"), "Report failed: #{err}")
   assert(!report.include?("DO_NOT_PRINT"), "Report leaked lockfile source credentials")
+  assert(report.include?("YJIT enabled (helper process)"), "Report omitted JIT evidence")
+  # Ruby 4 provides cgi/escape without the full CGI library.
+  guard = File.join(tmp, "without_full_cgi.rb")
+  File.write(guard, <<~RUBY)
+    module Kernel
+      alias_method :original_require, :require
+      def require(name)
+        raise LoadError, "Full CGI unavailable" if name == "cgi"
+        original_require(name)
+      end
+    end
+  RUBY
+  out, err, status = Open3.capture3(RbConfig.ruby, "-r", guard, File.join(SCRIPTS, "upgrade_report.rb"), baseline, evidence)
+  assert(status.success? && out.include?("**passed**"), "Report required the removed full CGI library: #{err}")
 
   fail_command = ruby_command("exit 7")
   out, _, code = run_script("verify_upgrade.rb", "--check", "failed=#{fail_command}", "--check", "later=#{ruby_command('exit 0')}", app)
@@ -107,6 +123,9 @@ Dir.mktmpdir("rails-update-tests-") do |tmp|
   assert(code == 1 && JSON.parse(out)["status"] == "failed", "Wrong target version passed")
   out, _, code = run_script("verify_upgrade.rb", "--check", "missing=rails-update-nonexistent-command", app)
   assert(code == 2 && JSON.parse(out)["checks"].any? { |c| c["status"] == "blocked" }, "Missing tool was not blocked")
+  out, _, code = run_script("verify_upgrade.rb", "--check", "signal=#{ruby_command('Process.kill("TERM", Process.pid)')}", app)
+  signaled = JSON.parse(out)["checks"].find { |check| check["name"] == "signal" }
+  assert(code == 1 && signaled["exit_code"].nil? && signaled["signal"] == Signal.list.fetch("TERM"), "Signal termination was mistaken for a normal exit")
   child_marker = File.join(tmp, "child-survived")
   slow = ruby_command('require "rbconfig"; spawn(RbConfig.ruby, "-e", "sleep 2; File.write(ARGV[0], :alive)", ARGV[0]); sleep 10', child_marker)
   out, _, code = run_script("verify_upgrade.rb", "--timeout", "1", "--check", "slow=#{slow}", app)

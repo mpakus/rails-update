@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 require_relative "verify_upgrade"
-require "cgi"
+require "cgi/escape"
 
 def cell(value)
   text = value.nil? ? "unknown" : (value.is_a?(Array) ? value.join(", ") : value.to_s)
@@ -37,6 +37,8 @@ begin
     "Running Ruby" => [before.dig("running", "ruby"), after.dig("running", "ruby")],
     "Ruby engine" => [before.dig("running", "engine"), after.dig("running", "engine")],
     "Platform" => [before.dig("running", "platform"), after.dig("running", "platform")],
+    "YJIT enabled (helper process)" => [before.dig("running", "yjit_enabled"), after.dig("running", "yjit_enabled")],
+    "ZJIT enabled (helper process)" => [before.dig("running", "zjit_enabled"), after.dig("running", "zjit_enabled")],
     "Declared Ruby (.ruby-version)" => [before.dig("declared", "ruby_version_file"), after.dig("declared", "ruby_version_file")],
     "Locked Ruby" => [before.dig("declared", "ruby_locked"), after.dig("declared", "ruby_locked")],
     "Locked Rails" => [before.dig("declared", "rails_locked"), after.dig("declared", "rails_locked")],

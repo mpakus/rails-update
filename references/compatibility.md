@@ -13,10 +13,11 @@ new mechanism and a behavioral check.
 | Runtime and dependencies | Runtime disagreement, missing standard libraries, implicit APIs lost with removed gems, native builds |
 | Removed APIs and loading | Keyword arguments, enums, autoloading, route fragments, framework monkey patches |
 | Persistence and search | YAML/JSON, association requiredness, Ransack, joined bulk writes, tenancy |
-| Forms and rendering | Error objects, silent validation, strong parameters, format negotiation, mixed asset pipelines |
+| Forms and rendering | Error objects, silent validation, [persisted form contracts](forms.md), strong parameters, format negotiation, mixed asset pipelines |
 | Jobs, reports and files | Renderer state, worker context, binary dependencies, imports, cron |
 | Authentication and I18n | First-request authentication, SAML, stored sessions, reloadable translation models |
 | Tests and delivery | Coverage boot, shared state, seeds, missing test gates, changed behavior hidden by green tests |
+| [Ruby 3.4 → 4.0](ruby-4.md) | CGI/bundled gems, process APIs, Ractors, HTTP headers, reflection, JIT and rollback specs |
 
 ## Runtime and dependencies
 
@@ -42,6 +43,15 @@ universally enable `force_ruby_platform`, system libraries, insecure TLS, or an
 old gem pin: each changes compatibility or security and needs its own evidence.
 ZIP/spreadsheet consumers can constrain Rubyzip; change them together when needed
 and test real archives/imports. Refresh advisories; old scan counts are not current.
+
+**Dependencies spanning Ruby and JavaScript.** Trace the reverse dependency before
+pinning a vulnerable transitive gem. A compatible fix may require its parent gem
+and matching npm plugin, with changes in both lockfiles. For example, Vite Ruby
+[checks plugin compatibility](https://vite-ruby.netlify.app/config/#skipcompatibilitycheck)
+and offers a [coordinated upgrade command](https://vite-ruby.netlify.app/guide/development#command-line-interface).
+Review that command's scope before using it; do not disable the compatibility check
+or broadly update unrelated packages. Verify the advisory, dev proxy, JavaScript
+tests, production build and served assets with the proxy disabled separately.
 
 **APIs supplied indirectly by gems.** Before removing an integration gem, inspect
 the lockfile dependencies that disappear with it and search their callers too.
@@ -189,6 +199,8 @@ multiple parameter readers rather than blanket-permitting everything. Use exact
 allowlists and server-derived user/tenant/facility scope. Inspect generated names
 and IDs before removing a field: JavaScript may depend on its ID. Verify the saved
 record and invalid response with unpermitted parameters raised in focused tests.
+Use the [form persistence matrix](forms.md) for omitted versus empty values,
+checkbox clearing, nested destruction, callback persistence, uploads and dates.
 
 **Template and format resolution.** Replace inappropriate handler-suffixed logical
 names (`partial.html.slim`, `layout.html.erb`) with logical names and explicit
