@@ -18,6 +18,12 @@ Baseline debt may still block release; it does not become safe because it predat
 the upgrade. A historical full-suite pass, mock, syntax check, route table and
 native execution are different kinds of evidence.
 
+For a multi-major change, distinguish committed endpoints, tested checkpoints and
+deployed images using the [upgrade record](upgrade-record.md). A combined commit
+does not prove intermediate tests were skipped; a planned checkpoint does not
+prove they ran. If production jumps straight to the target, rehearse compatibility
+between those deployed versions even when local intermediate tests passed.
+
 For a repeated audit, record the original upgrade revision and the current
 release/integration revision separately. Link late fixes to the checks they
 invalidate; do not copy a full-suite result forward after a runtime, dependency

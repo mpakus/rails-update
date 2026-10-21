@@ -70,6 +70,11 @@ generated annotations separately. Never suppress a tool failure and label it cle
 
 ## Removed APIs and loading
 
+When several major versions are crossed together, use the
+[transition inventory](multi-major.md#review-the-crossed-boundaries) to avoid
+checking only the final release's removals. Old framework defaults do not restore
+removed APIs or dependency behavior.
+
 Start with a targeted source search, using only directories present in the app:
 
 ```sh
@@ -296,6 +301,11 @@ Warden strategy registration and any initializer that references application
 mailers or mutates gem controllers. Prefer supported hooks or a routed subclass
 over loading a controller just to monkey-patch it. Verify failed/successful login,
 disabled/unconfirmed accounts, recovery, sign-out and persisted sessions/tokens.
+When crossing [Devise 5](https://github.com/heartcombo/devise/blob/main/CHANGELOG.md),
+check its changed secret-key lookup: unchanged environment variable names do not
+prove the effective signing key stayed the same. Verify old reset/confirmation
+tokens and session behavior without logging keys or tokens; do not rotate keys
+merely to repair a compatibility failure.
 When Rack changes a status symbol, assert the intended numeric response and browser
 behavior before updating expectations; don't change behavior to match an alias.
 
@@ -321,6 +331,15 @@ the deployed environment. Do not replace translation or any external integration
 with a silent pass-through value just to make boot/tests pass.
 
 ## Tests and delivery
+
+**Worker and scheduler launchers.** Reproduce the deployed command and Bundler
+environment in a disposable environment. A scheduler that loads Active Support
+before bundle setup can activate a different installed gem version than web/tests.
+Require the application's supported bootstrap before framework libraries; do not
+fix this by globally uninstalling gems. For Whenever or similar tools, test
+schedule generation without updating crontabs, and inspect generated executable,
+environment and working-directory settings. Verify normal worker startup and
+recurring registration separately from the build-only boot path.
 
 **Coverage-specific boot crashes.** Read `config/boot.rb` and the real CI harness,
 including when coverage starts and when Knapsack or equivalent binds. Reproduce

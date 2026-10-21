@@ -5,6 +5,8 @@ Cursor, Claude Code and Codex. It includes conditional compatibility repairs,
 source-search recipes, behavioral verification and data/release safeguards.
 
 Source: [mpakus/rails-update](https://github.com/mpakus/rails-update).
+Version: **1.0.0** — see the [changelog](CHANGELOG.md) and
+[versioned release](https://github.com/mpakus/rails-update/releases/tag/v1.0.0).
 `SKILL.md`, `references/` and `scripts/` live at the repository root and form a
 self-contained skill, independent of any particular application.
 
@@ -23,6 +25,8 @@ rails-update/
 ├── SKILL.md                     # Agent instructions and reference links
 ├── references/
 │   ├── compatibility.md         # Conditional compatibility patterns
+│   ├── multi-major.md           # Rails 5 to 8 transition and deployment checks
+│   ├── upgrade-record.md        # Checkpoint, dependency and evidence template
 │   ├── verification.md          # Test, data preservation and release gates
 │   ├── ruby-4.md                # Ruby 4 checks and regression spec recipes
 │   └── forms.md                 # Form payload and persistence regression matrix
@@ -59,6 +63,15 @@ Add `-g` for a user-wide installation. The CLI manages the destination directori
 The full source URL, `https://github.com/mpakus/rails-update`, also works in place
 of `mpakus/rails-update`. No npm package is required. See the official
 [Skills CLI documentation](https://github.com/vercel-labs/skills#readme).
+
+The command above follows `main`. To install the immutable 1.0.0 release instead:
+
+```sh
+npx skills@latest add https://github.com/mpakus/rails-update/tree/v1.0.0 \
+  --skill rails-update -a cursor -a claude-code -a codex
+```
+
+The installed `SKILL.md` records the package version in `metadata.version`.
 
 ### Install from a local checkout
 
@@ -164,6 +177,17 @@ test gates. Report regressions and missing evidence without editing code.
 To request repairs too, add: `Fix confirmed compatibility issues and verify
 the changed behavior.` For a repeated audit, supply both the original upgrade
 revision and the current release revision so the agent can check later fixes.
+
+For Rails 5 → 8 or another multi-major jump, the skill uses the
+[transition guide](references/multi-major.md) and
+[upgrade record template](references/upgrade-record.md). For example:
+
+```text
+$rails-update Audit this Rails 5.2 to Rails 8 upgrade. Distinguish the committed
+version jump from locally tested checkpoints and deployed versions. Review every
+crossed Rails 6/7/8 boundary, preserve the existing framework defaults, and record
+missing evidence without downgrading my working checkout.
+```
 
 ### Verify the result and write a report
 

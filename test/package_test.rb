@@ -12,6 +12,12 @@ raise "Missing skill frontmatter" unless frontmatter
 metadata = YAML.safe_load(frontmatter[1])
 raise "Incorrect skill name" unless metadata["name"] == "rails-update"
 raise "Missing skill description" unless metadata["description"].is_a?(String) && !metadata["description"].strip.empty?
+version = metadata.fetch("metadata", {})["version"]
+raise "Missing stable semantic skill version" unless version.is_a?(String) && version.match?(/\A(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\z/)
+changelog = File.read(File.join(root, "CHANGELOG.md"))
+unless changelog.match?(/^## #{Regexp.escape(version)} — \d{4}-\d{2}-\d{2}$/)
+  raise "Missing dated changelog entry for skill version #{version}"
+end
 
 links = 0
 Dir.glob(File.join(root, "{*.md,references/*.md}")).each do |path|
@@ -33,4 +39,4 @@ scripts.each do |script|
   raise "Helper help failed: #{script}: #{err}" unless status.success? && out.include?("Usage:")
 end
 
-puts "PASS: skill frontmatter, #{links} local file links and #{scripts.size} helper CLIs"
+puts "PASS: skill #{version}, frontmatter, #{links} local file links and #{scripts.size} helper CLIs"

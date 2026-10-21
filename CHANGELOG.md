@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 1.0.0 — 2026-10-21
+
+First versioned release of the existing skill; earlier publications followed
+`main` without version tags.
+
+### Added
+
+- Multi-major Rails upgrade guidance covering Rails 5.2 through 8.1, including
+  direct-target audits and the difference between Git, test and deployment history.
+- An upgrade record template for checkpoint evidence, dependency decisions,
+  follow-up fixes and rollout/rollback gates.
+- Worker/scheduler launcher checks and explicit coverage of all Ruby boundaries
+  when an older runtime jumps to Ruby 4.
+- Devise major-upgrade checks for signing-key lookup and cold first requests.
+- Package version metadata and a documented installation pinned to the release.
+- Chat invocation and practical planning, implementation, audit and report examples.
+
+### Included from earlier unversioned updates
+
 - Add Ruby 4 compatibility guidance, regression recipes and a frozen-bundle
   checker using semantic Ruby version requirements.
 - Record helper-process YJIT/ZJIT state; keep report generation independent of

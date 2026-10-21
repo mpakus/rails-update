@@ -2,11 +2,12 @@
 name: rails-update
 license: MIT
 metadata:
+  version: '1.0.0'
   author: 'Renat "MpaK" Ibragimov'
   author_url: https://aomega.co
 description: >-
-  Plan, implement, or audit Ruby and Ruby on Rails upgrades, including dependency
-  compatibility, removed APIs, hidden runtime regressions, data preservation,
+  Plan, implement, or audit Ruby and Ruby on Rails upgrades, including multi-major
+  jumps, dependency compatibility, removed APIs, hidden runtime regressions, data preservation,
   test and container parity, and release readiness. Use for a runtime/framework
   version change or failures caused by one. Supports Ruby-only applications and
   existing Rails stacks; does not prescribe a rewrite or unrelated modernization.
@@ -71,6 +72,12 @@ checks inapplicable with evidence; do not add Rails structure.
 
 ## 2. Choose testable checkpoints
 
+For upgrades spanning multiple Rails major versions, a direct target request, or
+an audit of a large combined upgrade commit, first read
+[multi-major upgrades](references/multi-major.md). Distinguish committed endpoints,
+locally tested checkpoints and deployed versions; one Git diff does not prove
+that intermediate versions were never exercised.
+
 Use the [Rails upgrade guide](https://guides.rubyonrails.org/upgrading_ruby_on_rails.html)
 and release notes for **each crossed version**. Prefer one Rails minor series per
 checkpoint, at a compatible patch release, with a separate Ruby checkpoint when
@@ -79,11 +86,15 @@ Rails, Bundler, native gems and deployment support; never hardcode a bridge.
 Before the next hop, test the current series' compatible patch and resolve its
 deprecations on the exercised paths. Keep warning output and the command's exit
 status; do not silence warnings globally or treat an empty log as coverage.
+If the requested or existing upgrade goes directly to the target, review every
+crossed transition and record unexecuted checkpoints honestly. Do not force
+intermediate production deployments or invent historical test passes.
 
 Keep the existing `config.load_defaults` and deliberate overrides during the
 version change. New defaults, cache/cookie formats, queue/storage replacements,
 and business behavior need their own tested changes. Do not introduce a new
 application stack merely because a generator recommends it.
+Old defaults do not restore removed APIs, classic autoloading or old gem behavior.
 
 Update only the named gems needed for the checkpoint. Review transitive changes,
 licenses and native platform resolution. Prefer a compatible maintained release,
@@ -100,7 +111,7 @@ is needed. Old test results remain historical evidence.
 Use the [compatibility catalog](references/compatibility.md). Read its section
 index first, then the sections matching the detected stack and version crossing.
 For every applicable area, record a concrete check or why it cannot yet run.
-For a Ruby 3.4 → 4.0 transition, also read [Ruby 4 checks and regression specs](references/ruby-4.md),
+For any transition crossing Ruby 4.0, also read [Ruby 4 checks and regression specs](references/ruby-4.md),
 including the opt-in gem requirement checker and changed library contracts.
 For apps with forms or nested records, read [form persistence checks](references/forms.md).
 Verify the rendered payload and reloaded data as well as the response.
@@ -129,6 +140,8 @@ needed): `location | symptom/trigger | baseline or regression | cause | fix |
 verification | remaining gate`. Distinguish confirmed failures, source-confirmed
 risks, hypotheses, pre-existing debt, and unavailable evidence. Continue safe,
 independent work when one external gate is blocked.
+For a multi-major upgrade, adapt the [upgrade record template](references/upgrade-record.md)
+to preserve the transition, dependency and evidence decisions in one document.
 
 ## 4. Preserve the persisted contracts
 
