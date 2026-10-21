@@ -166,6 +166,10 @@ investigation and repair; it cannot guarantee that all
 possible defects have been discovered. Structural validation of the package does
 not certify an application's upgrade or each client's live skill discovery.
 
+## Author
+
+[Renat "MpaK" Ibragimov](https://aomega.co)
+
 ## License
 
 [MIT](LICENSE).

@@ -1,6 +1,9 @@
 ---
 name: rails-update
 license: MIT
+metadata:
+  author: 'Renat "MpaK" Ibragimov'
+  author_url: https://aomega.co
 description: >-
   Plan, implement, or audit Ruby and Ruby on Rails upgrades, including dependency
   compatibility, removed APIs, hidden runtime regressions, data preservation,
