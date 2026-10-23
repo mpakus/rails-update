@@ -4,8 +4,6 @@
 
 ## 1.1.0 — 2026-10-23
 
-Local release candidate; not yet tagged or published.
-
 ### Added
 
 - Old-runtime queued-job fixtures, legacy mail readers, keyword/positional-hash

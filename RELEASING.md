@@ -4,6 +4,9 @@ This repository is one portable Agent Skill. Keep `SKILL.md` at the root with
 relative links to `references/` and `scripts/`. Tests, CI and release documents
 support maintenance; applications need no gem, npm package or required plugin.
 
+Pushing `main` runs CI checks but does not create a GitHub release. Publication
+also requires the version tag and GitHub release described below.
+
 ## Version policy
 
 Use stable `MAJOR.MINOR.PATCH` versions: patch for compatible corrections, minor for added

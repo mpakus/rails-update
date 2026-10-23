@@ -5,8 +5,8 @@ Cursor, Claude Code and Codex. It includes conditional compatibility repairs,
 source-search recipes, behavioral verification and data/release safeguards.
 
 Source: [mpakus/rails-update](https://github.com/mpakus/rails-update).
-Working version: **1.1.0** (not yet published) — see the [changelog](CHANGELOG.md).
-The latest published [versioned release is 1.0.0](https://github.com/mpakus/rails-update/releases/tag/v1.0.0).
+Version: **1.1.0** — see the [changelog](CHANGELOG.md) and
+[versioned release](https://github.com/mpakus/rails-update/releases/tag/v1.1.0).
 `SKILL.md`, `references/` and `scripts/` live at the repository root and form a
 self-contained skill, independent of any particular application.
 
@@ -66,10 +66,10 @@ of `mpakus/rails-update`. No npm package is required. See the official
 [Skills CLI documentation](https://github.com/vercel-labs/skills#readme).
 
 The command above follows published `main`, not uncommitted local changes.
-To install the immutable 1.0.0 release instead (1.1.0 is not published yet):
+To install the immutable 1.1.0 release instead:
 
 ```sh
-npx skills@latest add https://github.com/mpakus/rails-update/tree/v1.0.0 \
+npx skills@latest add https://github.com/mpakus/rails-update/tree/v1.1.0 \
   --skill rails-update -a cursor -a claude-code -a codex
 ```
 
