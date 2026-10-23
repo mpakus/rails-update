@@ -13,7 +13,8 @@ Adjust reference links for the destination document when copying this template.
 | Request | Analyze, implement, or audit; exact requested Ruby/Rails targets |
 | Baseline | Commit, lockfile identity, Ruby/Rails/Bundler, defaults and explicit overrides |
 | Original upgrade | Commit and comparison base; ancestry or content-comparison result |
-| Current integration | Exact commit plus dirty-diff identity, runtime and lockfile |
+| Current integration | Exact commit plus dirty-diff identity, runtime and lockfile; prior fixes confirmed present |
+| Separate repairs | Checkout/patch identity and validation; integrated, uncommitted, or still external |
 | Deployed baseline/target | Image digests and observed web/worker runtime, or unknown |
 | Strategy | Local staged checkpoints or direct target; separate deployment sequence |
 | Retained contracts | Defaults, tenancy, queue, sessions, attachments, assets and persisted formats |
@@ -47,6 +48,10 @@ Use the [verification matrix](verification.md#check-matrix) as the starting poin
 List focused/full tests, pending examples, warnings, boot/routes, assets, browser/API,
 jobs/scheduler, native image, data restore/fidelity and external integrations
 separately. Include the CI run URL and each required job's result on the exact SHA.
+Record PR head and CI merge SHA separately. For shard-sensitive failures include
+the file set/order and cleaner/pool configuration. For deployment, include each
+environment and fresh-process Bundler settings; for migrations include discovered
+paths, ledger and actual resulting columns.
 
 Record the old and new readers/writers for sessions, caches, jobs and serialized
 data, any required overlap restriction, the rollback image, and restore-rehearsal

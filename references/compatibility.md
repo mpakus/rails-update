@@ -10,13 +10,13 @@ new mechanism and a behavioral check.
 
 | Area | Search for / symptom |
 | --- | --- |
-| Runtime and dependencies | Runtime disagreement, missing standard libraries, implicit APIs lost with removed gems, native builds |
+| Runtime and dependencies | Runtime disagreement, Bundler configuration lifetime, dependency bounds, missing libraries, native builds |
 | Removed APIs and loading | Keyword arguments, enums, autoloading, route fragments, framework monkey patches |
-| Persistence and search | YAML/JSON, association requiredness, Ransack, joined bulk writes, tenancy |
+| Persistence and search | Connection pools, deferred attribute types, migration paths, YAML/JSON, association requiredness, SQL |
 | Forms and rendering | Error objects, silent validation, [persisted form contracts](forms.md), strong parameters, format negotiation, mixed asset pipelines |
-| Jobs, reports and files | Renderer state, worker context, binary dependencies, imports, cron |
+| Jobs, reports and files | [Old serialized jobs](queued-jobs.md), Active Storage schema/callbacks, renderer state, binaries, cron |
 | Authentication and I18n | First-request authentication, SAML, stored sessions, reloadable translation models |
-| Tests and delivery | Coverage boot, shared state, seeds, missing test gates, changed behavior hidden by green tests |
+| Tests and delivery | Coverage boot, DatabaseCleaner/thread visibility, shard load order, seeds, missing gates |
 | [Ruby 3.4 → 4.0](ruby-4.md) | CGI/bundled gems, process APIs, Ractors, HTTP headers, reflection, JIT and rollback specs |
 
 ## Runtime and dependencies
@@ -28,6 +28,16 @@ and `bundle -v` in the process actually used for checks. A Ruby base image may b
 the second `FROM`; a development image may pin a different Bundler. Use a matching
 runtime before diagnosing `Bundler::RubyVersionMismatch`. Verify a frozen install
 and boot in the production dependency groups, not only a developer bundle.
+
+**Bundler configuration lifetime.** An inline `BUNDLE_PATH`, `BUNDLE_WITHOUT` or
+`BUNDLE_DEPLOYMENT` affects only that process and its children. Inspect install,
+precompile, migrations, web, workers and cron as separate launches. Persist the
+intended settings with `bundle config set --local` in each release, or provide
+them consistently through the deployment's managed environment. Check the runtime
+user, working directory, `BUNDLE_APP_CONFIG`, recreated release directories and
+shared-bundle symlink target. Use a clean disposable gem home and separate
+processes for install and execution; globally installed gems can mask missing
+configuration. See [Bundler configuration](https://bundler.io/man/bundle-config.1.html).
 
 **Removed default/bundled libraries.** Search `require` and production dependency
 paths for libraries such as `csv`, `benchmark`, `logger`, `base64`, `bigdecimal`,
@@ -61,6 +71,15 @@ pagination API where equivalent; verify page boundaries, totals, ordering and
 unpaginated exports. Check removed Railties/engines for helpers and vendor asset
 paths. Absence of that integration's templates does not prove removal is safe.
 
+**A stale upper bound is not proof of broken runtime behavior.** If no suitable
+maintained release exists, a narrowly scoped vendored copy can preserve behavior.
+Record the upstream version/revision, license, exact patch, tested upper bound
+and removal condition. Test the affected behavior before widening a requirement;
+do not silently edit installed gems or claim compatibility with the next Rails
+series. An asset-wrapper gem can change browser behavior even at a patch release:
+compare its shipped JS/CSS/translations by hash when only a dependency bound
+needs changing, then retain the browser acceptance gate.
+
 **Developer tools also cross the boundary.** Inspect RuboCop's supported Ruby
 parser/`TargetRubyVersion`, plugin configuration, RSpec/RSwag, Brakeman,
 Bundler Audit and database task hooks. An obsolete `annotate` dependency may call
@@ -80,6 +99,7 @@ Start with a targeted source search, using only directories present in the app:
 ```sh
 rg -n -o 'update_attributes!?|File\.exists\?|Dir\.exists\?|URI\.(encode|escape)|\.to_s\(:|\.parent\b|Preloader\.new|Zip::Zip' app config lib
 rg -n -o 'enum[[:space:]]+[A-Za-z_]+:|serialize[[:space:]]|meta_params|ruby2_keywords' app lib
+rg -n -o 'connection_config|decorate_attribute_type|SchemaMigration|url_expires_in|ActionMailer::(Parameterized::)?DeliveryJob' app config lib spec
 ```
 
 Exit 1 from `rg` means no matches; exit 2 is a search error. These examples neither
@@ -100,6 +120,12 @@ The `-o` output avoids dumping whole source lines that might contain credentials
 | `Zip::ZipOutputStream`/obsolete adapter | Use the supported Rubyzip API and remove a shim only after checking all callers | Parse the produced archive, assert names/content/encoding and attachment type |
 
 **Configuration APIs.** Check deprecations in every environment, not just test.
+For example, a removed `ActiveStorage::Service.url_expires_in=` call can survive
+in production/staging configs after development is fixed. Use the target's
+`config.active_storage.service_urls_expire_in` while preserving the intended TTL
+([Rails configuration](https://guides.rubyonrails.org/configuring.html#config-active-storage-service-urls-expire-in)).
+Evaluate each supported environment with isolated dependencies; configuration
+evaluation is an early check, not proof of full boot or a real storage request.
 Version-dependent changes include mailer `preview_path` to `preview_paths`, RSpec
 `fixture_path` to `fixture_paths`, and RSwag `swagger_*` to `openapi_*` settings and
 metadata. Update related tasks and consumers together, preserving docs routes,
@@ -129,6 +155,36 @@ instead of disabling the host allowlist to fix a test-only default-host failure.
 
 ## Persistence and search
 
+**Connection configuration and deferred types.** Replace removed
+`connection_config` reads with the selected version's
+`connection_db_config.configuration_hash`, making a new hash for overrides.
+Preserve the owning model, role, schema search path and separate pools, including
+when two pools use one database. Check alternate adapter/mode branches and test
+helpers; success in the default mode does not exercise the alternate boot path.
+
+For custom schema-dependent types, preserve deferred application. Rails 8.1's
+internal `decorate_attributes(names) { |name, type| ... }` can replace an old
+`decorate_attribute_type` hook when a supported public attribute declaration
+cannot preserve the contract. Verify the installed implementation and pin its
+regression checks; it is an undocumented API, not a universal replacement.
+Test native booleans and integer-backed flags separately, including 0, 1, other
+stored integers and NULL. Reload, perform an unrelated write, and compare raw
+stored values before explicitly writing true/false. Include dirty tracking,
+query scopes, zero-date/sentinel decoding and ordinary dates where used. Eager
+schema reads or unconditional boolean casting can corrupt imported states.
+
+**Migration discovery and generated attributes.** An undefined model predicate
+delegated through a decorator can mean a missing database column. Inspect the
+resolved connection, schema and migration ledger before adding a fallback method.
+Native `db:migrate` only visits configured migration paths; a successful command
+does not prove that a separate legacy directory ran. On a disposable upgrade
+fixture missing the expected column, assert both the physical schema change and
+the version recorded in the intended ledger. Custom migration code using
+`ActiveRecord::SchemaMigration` as an Active Record model must be checked against
+the target's pool-bound migration APIs; old calls such as class-level
+`reset_column_information` no longer apply. Preserve historical versions and
+schema ownership instead of reseeding a ledger to make a status check pass.
+
 **Serialization.** Search `serialize`, `YAML.load`, `YAML.parse(...).to_ruby`,
 `unsafe_load`, Psych aliases, `Marshal`, serialized job handlers and audit values.
 For APIs requiring keyword options, use an explicit `coder:` without silently
@@ -145,6 +201,13 @@ to a request, upload or other untrusted input; do not copy an isolated historica
 history strings. A narrow parser must preserve unknown text, handle malformed
 input and escape user content when displaying it.
 
+For trusted configuration using YAML anchors, opt in locally with
+`YAML.safe_load_file(path, aliases: true)`; aliases and permitted object classes
+are separate decisions. For encryption-library changes, generate a synthetic
+ciphertext fixture with the old library and fixed test-only keys, then decrypt
+under the new library. A new-library round trip misses legacy unreadability;
+never regenerate the old fixture with the new implementation.
+
 **Associations.** Inspect actual foreign keys, `class_name`, `inverse_of`, touch,
 nested attributes, validation conditions and `belongs_to_required_by_default`.
 Preserve the application's requiredness, including draft and conditional states.
@@ -152,6 +215,10 @@ Uniqueness, formatting, a database FK and nullability do not establish a model
 presence validation. Do not add `optional: true` or presence validation globally.
 A namespaced association may need an explicit class instead of a data repair.
 Prove both valid/invalid transitions, parent touching and tenant ownership.
+Read the effective setting after defaults and overrides: a Rails upgrade does not
+necessarily make every existing `belongs_to` required. Preserve intentional
+optional associations and separately verify uniqueness case sensitivity with
+the real adapter/collation; changed validator defaults can alter legacy behavior.
 
 **Ransack and SQL sorting.** Inspect all searchable/sortable models, associations,
 custom ransackers and `auth_object` usage. Derive explicit allowlists from real
@@ -185,8 +252,11 @@ different tenancy architecture during a runtime upgrade.
 
 ## Forms and rendering
 
-**Error objects.** Modern `ActiveModel::Errors#each` yields error objects rather
-than field-name/message pairs. Inspect every consumer, including JS ERB, helpers
+**Error objects.** Replace `errors[:field] << message` with
+`errors.add(:field, message)`: mutating the returned messages array may leave the
+record valid. Assert rejection, persisted state and rendered messages, not just
+an in-memory error string. Modern `ActiveModel::Errors#each` yields error objects
+rather than field-name/message pairs. Inspect every consumer, including JS ERB, helpers
 and components. Use `error.attribute` and `error.message`, or
 `errors.attribute_names` when only fields are needed. Never use `error.to_s` as a
 DOM selector or pass the error object into `errors[error]`.
@@ -219,6 +289,13 @@ Check ternaries, parentheses, whitespace-sensitive helper calls, invalid table
 markup, escaping and nested controls. Compilation alone misses missing helpers,
 template lookup, wrong instance variables and broken JavaScript.
 
+When a template engine changes output-buffer or helper APIs, test capture,
+fragment caching, escaping and the resulting HTML structure. Haml helper calls
+may need Rails tag/capture helpers. A renderer returning an output-buffer object
+may need conversion at an external string-only adapter boundary. Check mail body
+and layout separately; rendering a complete email body again as its own layout
+can duplicate content. Preserve the original DOM and text using parsed fixtures.
+
 **Asset compilation.** Check explicit Sprockets manifests, gem vendor asset paths,
 and extensions needed for preprocessing, such as `.js.erb`. A newer dependency's
 JavaScript may exceed the old minifier's syntax support; verify supported options
@@ -250,6 +327,9 @@ rendered markup and behavior rather than asserting an exact formatting string.
 
 ## Jobs, reports and files
 
+For serialized mail, positional hashes or keyword-only job signatures, follow
+[queued-job compatibility](queued-jobs.md) before changing class names or arguments.
+
 **Standalone rendering.** Trace request → parameter builder → dispatcher → job →
 query → renderer → native tool → storage → authorized download. Background work
 does not inherit `current_user`, request params or controller instance variables.
@@ -278,6 +358,26 @@ ImageMagick presence. Flush/rewind temporary files before another reader uses
 them, supply a required suffix, close/unlink them safely, and validate remote
 responses before treating bytes as an archive. Parse XLS/XLSX/ZIP output and check
 representative totals, dates and empty datasets; an HTTP 200 is insufficient.
+
+**Active Storage across Rails generations.** Inventory app-side shadows of engine
+controllers and transformer patches against the target engine. Preserve upload
+authorization, CSRF behavior, mounted paths and inline/attachment disposition.
+Test denied users create neither blob rows nor upload URLs. Exercise actual
+upload completion before transformations: an application callback can precede
+Active Storage's upload-after-commit callback even though the record exists.
+Check old signed transformation payloads, any `combine_options` compatibility,
+format-dependent variant keys and animated GIF frames. Variant regeneration is
+different from loss of originals; keep original keys and objects intact.
+
+If the old blob schema lacks `service_name`, map existing objects to their real
+configured service(s) before backfilling. Preserve blob/attachment IDs and object
+keys; verify old downloads, new writes and migration reversal on disposable data.
+A NOT NULL service column without an old-writer-compatible default rejects older
+Rails blob inserts. Before using such a migration, stop old web/worker writers or
+design and test an expand/backfill/contract rollout. On rollback, restore schema
+compatibility before restarting old writers; a reversible column migration alone
+does not prove mixed-version writes safe. Review other target storage schema
+requirements separately, including optional variant tracking if enabled.
 
 **Workers and schedulers.** Test actual deserialization and execution through the
 retained backend, old queued mail/job formats, queue names, retry behavior and
@@ -357,6 +457,17 @@ existing test lifecycle. Reproduce the failing seed, bisect when useful, then
 rerun another seed. Avoid retries, disabling random order, mass fixture changes or
 weaker assertions as substitutes for isolation. Keep native-tool stubs distinct
 from checks that execute the native tool.
+
+**DatabaseCleaner and worker visibility.** A worker's `RecordNotFound` followed
+by the parent's timeout can be an uncommitted test fixture. Surface the worker
+exception before changing application locks or timeouts. DatabaseCleaner 2 may
+register a default transaction cleaner alongside named cleaners; a global
+`DatabaseCleaner.start` starts that cleaner too. Configure, start and clean the
+same explicit pool-specific cleaners using the installed adapter's API (for
+example `DatabaseCleaner[:active_record, db: ModelBase]`). Threaded examples need
+committed fixtures and the harness's appropriate cleanup strategy. Check each
+pool even when both share a database. Reproduce the failing shard/file subset and
+load order: another spec's global truncation setting can mask this in a full run.
 
 **Fresh install and CI gaps.** Review seeds before executing them: old seeds can
 query translated fields on the wrong table or delete populated data. Test a fresh

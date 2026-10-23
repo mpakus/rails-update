@@ -80,7 +80,7 @@ the linked references.
 | Rails 7.1 | Serialization coder contracts, load paths, logging, cache and signed-data settings; [7.1 release notes](https://guides.rubyonrails.org/7_1_release_notes.html) | Old stored values and new writes, operational logs, and old/new reader compatibility for formats actually changing |
 | Rails 7.2 | Test behavior with the configured queue adapter and custom attribute aliases; [7.2 upgrade notes](https://guides.rubyonrails.org/upgrading_ruby_on_rails.html#upgrading-from-rails-7-1-to-rails-7-2) | Enqueue and execute retained mail/job paths; a test adapter stub does not prove worker execution |
 | Rails 8.0 | Removed keyword enum syntax and fresh-database task behavior; [8.0 release notes](https://guides.rubyonrails.org/8_0_release_notes.html) | Reload historical enum values, predicates and scopes; distinguish fresh schema bootstrap from migrating an existing database |
-| Rails 8.1 | Schema dump ordering; [8.1 upgrade notes](https://guides.rubyonrails.org/upgrading_ruby_on_rails.html#upgrading-from-rails-8-0-to-rails-8-1) | Compare structural schema inventories rather than line counts; retest the final runtime after regeneration |
+| Rails 8.1 | Schema dump ordering and surviving custom connection/type/migration internals; [8.1 upgrade notes](https://guides.rubyonrails.org/upgrading_ruby_on_rails.html#upgrading-from-rails-8-0-to-rails-8-1) | Compare structural inventories; exercise every configured pool/mode and deferred type; retest after regeneration |
 | Ruby 4, when crossed | Standard-library packaging, native gems and serialization boundaries | Apply [Ruby 4 checks](ruby-4.md) in addition to the earlier Ruby boundaries |
 
 For each Rails hop, also review the **selected dependency versions**. Ransack
@@ -111,6 +111,8 @@ for the exact pair that will overlap or be used for rollback:
   and attachment metadata under the target. Where old/new processes overlap,
   test both write/read directions; pause only the affected producers/consumers
   when a proven incompatibility requires it.
+  Use the [queued-job guide](queued-jobs.md) for real old-runtime fixtures and
+  legacy mail classes; new enqueue assertions alone cannot establish this gate.
 - Test web, worker, scheduler and asset-build entrypoints separately. Use each
   launcher's real Bundler/environment context; a scheduler invoked outside
   `bundle exec` can fail even when request specs pass. Generate schedules without

@@ -23,6 +23,12 @@ versions; an article's example target is not a current release recommendation.
   Do not blindly delete shared bundles or run `bundle pristine`: it restores gem
   sources and can erase local gem edits. Test real native operations afterward.
   See [Bundler pristine](https://bundler.io/man/bundle-pristine.1.html).
+- Check both removed/default libraries and resolved library versions: real callers
+  may need explicit `csv`, full `cgi` or `net-ftp` dependencies. Do not upgrade
+  every bundled gem along with Ruby; test the actual load paths under production
+  groups. A separate operational sub-bundle may deliberately retain another Ruby.
+- Inspect scripts parsing `bundle --version`; Bundler 4 can print the bare version.
+  Verify both Ruby and Bundler in actual launchers, not only the version parser.
 
 From the app directory, with its baseline Ruby/Bundler and reviewed Gemfile:
 
@@ -63,6 +69,21 @@ Adapt these to the existing spec suite and real application entrypoints:
 | Ractor messaging | Distinguish a final result (`value`) from a stream (`Ractor::Port`). Test multiple messages, termination/error propagation and closure with bounded waits; don't rewrite arbitrary `.take` calls. |
 | Set/SortedSet consumers | Assert membership and required ordering, not incidental `inspect` text. Preserve sorting if it is a product contract. `SortedSet` needs its explicit library. |
 | Error/backtrace or reflection consumers | Test error grouping with a real application exception and its source location. Exercise numbered-parameter/Proc metadata consumers only where used; avoid replacing every error snapshot blindly. |
+
+**Parser implementation changes can bypass custom guards.** A JSON parser may
+populate a supplied Hash subclass without calling its overridden `[]=`. If that
+override rejects duplicate keys, test actual duplicate-key input through the
+installed parser, including nested objects. Use its supported rejection option
+(for example `allow_duplicate_key: false` in a supporting JSON version) and retain
+malformed-input/encoding failures. A parser accepting ordinary JSON proves
+nothing about duplicate-key enforcement.
+
+**Mutable-string warnings need a behavior check.** For owned code that mutates a
+literal, make the intended mutable buffer explicit while preserving content and
+encoding. Separate first-party warnings from dependency warnings and record the
+remaining upstream warnings. Keep the CI coverage path active: see
+[coverage-specific boot crashes](compatibility.md#tests-and-delivery) before
+attributing a Bootsnap failure to the application or disabling SimpleCov.
 
 These changes are documented in [Ruby 4 NEWS](https://docs.ruby-lang.org/en/4.0/NEWS_md.html).
 

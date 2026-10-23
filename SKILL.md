@@ -2,7 +2,7 @@
 name: rails-update
 license: MIT
 metadata:
-  version: '1.0.0'
+  version: '1.1.0'
   author: 'Renat "MpaK" Ibragimov'
   author_url: https://aomega.co
 description: >-
@@ -48,6 +48,8 @@ For a repeated audit, distinguish the original upgrade tip, the current release
 or integration tip, and the working checkout. Inspect follow-up fixes as well as
 the original upgrade diff. Squashed/rebased copies may not share ancestry;
 compare their relevant file contents before calling a fix missing or merged.
+Verify that previously tested fixes survived integration; retained upgrade notes
+can describe code that a later merge or cherry-pick replaced.
 
 Use [scripts/runtime_snapshot.rb](scripts/runtime_snapshot.rb) when a reusable
 JSON baseline would help. Run it with plain Ruby, not `bundle exec` or Rails
@@ -115,6 +117,9 @@ For any transition crossing Ruby 4.0, also read [Ruby 4 checks and regression sp
 including the opt-in gem requirement checker and changed library contracts.
 For apps with forms or nested records, read [form persistence checks](references/forms.md).
 Verify the rendered payload and reloaded data as well as the response.
+For persisted jobs or queued mail crossing Ruby/Rails versions, read
+[queued-job compatibility](references/queued-jobs.md); changing today's enqueue
+API does not repair yesterday's serialized payloads.
 Search the whole mechanism, including controllers, concerns, helpers, components,
 templates, services, jobs, tasks, engines, initializers and tests. Use repository
 search or `rg`; use a reference index only if it is available and relevant.
@@ -168,6 +173,10 @@ Apply the relevant matrix in [verification.md](references/verification.md).
 Run focused checks first, then the full suite for an upgrade. Use the same coverage,
 test-distribution, dependency groups and compiled assets as CI. A Ruby patch,
 lockfile, base-image or late source change invalidates affected earlier evidence.
+Reproduce a failing shard's file set and load order as well as the full suite;
+global test state can hide failures when more files load. Verify supported
+database modes, deployed environment configs and fresh deployment processes
+separately from the default test environment.
 Inspect individual CI jobs on the tested SHA: an overall successful workflow may
 have skipped its tests. Separate an upgrade regression from a pre-existing defect
 revealed by the wider audit; do not copy business-rule changes into other apps.

@@ -154,7 +154,7 @@ See [Ruby 4 regression recipes](ruby-4.md) for library/process/HTTP checks to ad
 
 | Gate | Minimum useful evidence | Easily missed failure |
 | --- | --- | --- |
-| Runtime/dependencies | Actual runtime matches declarations; frozen install for production groups and platforms; workers agree | Developer gems conceal missing runtime dependencies; old Bundler in a later image stage |
+| Runtime/dependencies | Actual runtime matches declarations; frozen production install followed by fresh precompile/worker processes | Developer gems conceal dependencies; install-only Bundler settings disappear at service startup |
 | Cold boot/loading | Fresh process in every supported environment; eager load and first request; reload if supported | Initializer order, config acronyms, lazy Warden strategies, boot-time DB writes |
 | Routes/API | Compare names/verbs/paths and request behavior; auth, errors, JSON structure, metadata, pagination and content types | Removed custom actions, changed route helpers, keyword-only serializer, accidentally public docs |
 | Models/data | Stored-value round trips, callbacks, enums, validation conditions, soft-delete/restore and association resolution | Blank/draft states become invalid; old serialized rows stop loading |
@@ -162,11 +162,11 @@ See [Ruby 4 regression recipes](ruby-4.md) for library/process/HTTP checks to ad
 | Tenancy/auth | Two tenants and roles; forged IDs/filters; session/token lifecycle; full SSO checks if present | Broad search allowlists, global lookups, reports escaping request scope |
 | Forms/browser | [Form matrix](forms.md): submit real control names, reload parent/children; clear/update/delete, invalid requests, uploads and real JS | In-memory success with lost data, omitted fields erased, checkbox ghost rows, duplicate submissions |
 | Assets | Production compilation without live services where designed; fetch actual JS/CSS/font/image assets and verify expected code/widget | Colliding logical entrypoints, missing engine/vendor paths, unprocessed ERB, dev-server-only success |
-| Queues/schedules | Execute real adapter with synthetic old/new payloads, mail delivery, retry/idempotency; harmless cron check | Inline tests miss serialization; scheduler disabled by build flag; cron log path missing |
+| Queues/schedules | [Old-runtime fixtures](queued-jobs.md) through the backend wrapper, mail delivery and retry/reserialization; harmless cron check | Removed mail class, positional hash rejected by keyword-only worker, scheduler disabled by build flag |
 | Reports/files | Request/job-to-download path; parse generated PDF/XLS/XLSX/ZIP; representative and empty totals; visual PDF check | Instance variables absent, wrong layout/format, parser accepts an empty artifact |
 | Native runtime | Execute PDF and image transformations inside final production architecture/image | Working macOS binary, missing image codec or incompatible OpenSSL in Linux |
-| Database | Isolated fresh schema/bootstrap and restored-copy migration; structural and per-tenant fidelity | Seeds query obsolete schema or delete rows; migrations work only on a developer DB |
-| Tests | Focused regression checks and full suite under CI-equivalent harness; changed JS checks where applicable | Coverage-only boot crash, global-state leak, excluded slow specs, weakened assertions |
+| Database | Every supported mode/pool; fresh schema and restored-copy migration; intended ledger, columns and stored-value fidelity | Unvisited legacy migration directory, shared search path, deferred types coerce stored values |
+| Tests | Affected shard/file order plus full CI-equivalent suite; changed JS checks where applicable | Global cleaner hides uncommitted fixtures in a full run; coverage-only crash, excluded slow specs |
 | Lint/security | Target-runtime-compatible tools; changed-code lint and refreshed dependency/static scans with triage | Scanner cannot parse new Ruby; nonzero scan represented as clean |
 | Delivery/rollback | Required tests feed build/deploy on the release branch; immutable artifact/revision, web-worker parity and rollback rehearsal | Feature-only tests bypassed by deploy, DB mutation in Docker build, incompatible mixed workers |
 
@@ -233,6 +233,9 @@ usually smaller than replacing them.
    Compare normalized table/column/type/default/nullability/index/constraint/
    extension inventories, schema version and migration status. Include views,
    triggers, functions, sequences and other structures the application uses.
+   Inventory every configured migration path and its owning ledger. Rehearse a
+   fixture missing the newly required columns: assert the migration creates them
+   and records the intended versions. A successful no-op task cannot prove this.
 4. Check row counts by tenant, soft-deleted rows, ownership/FK consistency, enum
    mappings, serialized values and attachment references before and after. A
    textual schema diff, matching table count or model annotation is insufficient.
@@ -257,6 +260,9 @@ locally while promotion remains blocked by external acceptance checks.
   and artifact identity. A successful build/deploy with skipped tests does not
   replace a full-suite result. A feature-branch pass does not prove the merged
   release revision passed, nor that branch protection requires that check.
+  Distinguish PR head, CI's synthetic merge commit and the current integration
+  tree. Recheck retained fixes in source; old green logs and upgrade notes can
+  outlive the implementation they validated.
 - Build an immutable application image without live DB migration. Run the reviewed
   migration once in an observable release step before processes needing it.
   Confirm web, worker and scheduler artifacts and configuration are compatible.
@@ -270,6 +276,10 @@ locally while promotion remains blocked by external acceptance checks.
   and payloads. Rolling back an image does not undo destructive migrations or
   recover deleted history. Prefer compatible additive changes and a reviewed
   forward fix; never auto-run irreversible database rollback.
+- For non-null storage metadata or incompatible queue formats, document exact
+  producer/consumer ordering. Stop old writers before an incompatible schema
+  change; account for delayed and retry jobs before removing old readers. Restoring
+  an image alone does not restore schema or payload compatibility.
 
 The final report should make the distinction clear: source implementation,
 local verification, CI evidence, production-image verification and deployment

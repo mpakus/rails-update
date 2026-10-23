@@ -5,8 +5,8 @@ Cursor, Claude Code and Codex. It includes conditional compatibility repairs,
 source-search recipes, behavioral verification and data/release safeguards.
 
 Source: [mpakus/rails-update](https://github.com/mpakus/rails-update).
-Version: **1.0.0** — see the [changelog](CHANGELOG.md) and
-[versioned release](https://github.com/mpakus/rails-update/releases/tag/v1.0.0).
+Working version: **1.1.0** (not yet published) — see the [changelog](CHANGELOG.md).
+The latest published [versioned release is 1.0.0](https://github.com/mpakus/rails-update/releases/tag/v1.0.0).
 `SKILL.md`, `references/` and `scripts/` live at the repository root and form a
 self-contained skill, independent of any particular application.
 
@@ -28,6 +28,7 @@ rails-update/
 │   ├── multi-major.md           # Rails 5 to 8 transition and deployment checks
 │   ├── upgrade-record.md        # Checkpoint, dependency and evidence template
 │   ├── verification.md          # Test, data preservation and release gates
+│   ├── queued-jobs.md           # Old payloads, mail readers and queue cutover
 │   ├── ruby-4.md                # Ruby 4 checks and regression spec recipes
 │   └── forms.md                 # Form payload and persistence regression matrix
 ├── scripts/
@@ -64,7 +65,8 @@ The full source URL, `https://github.com/mpakus/rails-update`, also works in pla
 of `mpakus/rails-update`. No npm package is required. See the official
 [Skills CLI documentation](https://github.com/vercel-labs/skills#readme).
 
-The command above follows `main`. To install the immutable 1.0.0 release instead:
+The command above follows published `main`, not uncommitted local changes.
+To install the immutable 1.0.0 release instead (1.1.0 is not published yet):
 
 ```sh
 npx skills@latest add https://github.com/mpakus/rails-update/tree/v1.0.0 \

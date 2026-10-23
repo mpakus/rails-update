@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## 1.1.0 — 2026-10-23
+
+Local release candidate; not yet tagged or published.
+
+### Added
+
+- Old-runtime queued-job fixtures, legacy mail readers, keyword/positional-hash
+  compatibility, retry checks and explicit drain/rollback criteria.
+- Bundler settings across deployment processes and checks for every deployed
+  environment, database mode, pool, migration path and ledger.
+- Deferred attribute-type preservation, raw-value checks on unrelated writes,
+  missing-column diagnosis and historical encryption fixtures.
+- Active Storage controller, callback, transformation, schema and old-writer
+  compatibility checks; template-buffer and complete-mail rendering checks.
+- DatabaseCleaner worker-visibility diagnosis and failing-shard reproduction,
+  including verification that earlier fixes survive later branch integration.
+- Narrow dependency-bound patches with provenance and asset parity, Ruby 4
+  duplicate-key guards, Bundler version output and warning attribution.
+
+### Clarified
+
+- Error insertion, association requiredness and uniqueness behavior must be
+  verified against effective configuration and the actual adapter.
+- Local repairs, integrated code, historical CI and release acceptance remain
+  separate evidence. Helper CLIs and evidence formats are unchanged.
+
 ## 1.0.0 — 2026-10-21
 
 First versioned release of the existing skill; earlier publications followed
